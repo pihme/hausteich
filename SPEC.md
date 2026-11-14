@@ -23,7 +23,10 @@ paperless-ngx   ──> Rinnsal for paperless ─┘
 | Term | Meaning |
 | --- | --- |
 | Source | One place where data lives, registered in Hausteich under a name: one mailbox, one folder tree, one archive. |
-| Item | One thing from a source: a message, a file, a document. Identified by the source and an id the Rinnsal chooses. |
+| Item | One thing from a source: a message, a file, a document. Identified by the source and its external id. |
+| External id | The id a Rinnsal makes up for an item. Hausteich stores it and never interprets it. It is how a changed item replaces its older state. |
+| Locator | A URL or path a Rinnsal stores with an item, to find the original again later. Hausteich stores it and never follows it. |
+| Original | The item as it is at the source: the message, the file, the archived document. Hausteich holds only the text it was handed. |
 | Chunk | A passage of an item, the unit that is embedded, indexed and returned as a hit. |
 | Rinnsal | A helper that draws from one source and fills the pond. |
 | Privacy level | A label on a source. Stored and returned; nothing acts on it yet. |
@@ -53,15 +56,15 @@ REST over HTTP, JSON bodies, paths under `/v1`.
   "container": "the folder or mailbox path",
   "thread": "an id shared by items that belong together",
   "tags": ["labels the source has for the item"],
-  "locator": "how an application opens the original, for example a message id",
+  "locator": "a URL or path that lets this Rinnsal find the original again",
   "attachments": [{"name": "offer.pdf", "media_type": "application/pdf", "size": 48211}]
 }
 ```
 
-- `id` is stable for the life of the item and chosen by the Rinnsal. For mail it has to survive a move between folders.
+- `id` is the external id. The Rinnsal makes it up, and it stays the same for the life of the item, so that a later delivery of the same item replaces the earlier one. For mail it has to survive a move between folders.
 - `version`, `format` and `text` are required. Everything else is optional.
 - `format` is one Hausteich can cut: `text/plain`, `text/markdown`, `text/html`, and `application/vnd.docling.document+json` for documents converted with Docling.
-- The call is idempotent. Same `version` as stored: nothing happens, answer `200`. New item: `201`. Changed item: the old chunks are replaced, `200`.
+- This one call is the update mechanism. Same `version` as stored: nothing happens, answer `200`. New external id: `201`. Known external id with a new `version`: the stored text, fields and chunks are replaced as a whole, `200`. When and how often a Rinnsal looks for changes is its own business.
 - The call returns when the item is searchable. There is no queue in the first cut.
 - Knowledge about the source stays in the Rinnsal: it decodes MIME, reads a file, asks the archive, and decides what the text is. Hausteich cuts and indexes what it gets, and never sees a PDF or an office file.
 - Attachments are listed, not stored or indexed, in the first cut.
@@ -74,9 +77,18 @@ REST over HTTP, JSON bodies, paths under `/v1`.
 
 `GET /v1/sources/{source}/items?after={id}&limit={n}` lists ids and versions in id order, page by page. A Rinnsal compares this with its source to find what is new, changed or gone, so it needs no state of its own.
 
+### 3.5 Hand out an original
+
+Hausteich never opens a connection, not to a source and not to a Rinnsal. A Rinnsal that can hand out originals stays connected instead and waits to be asked:
+
+- `GET /v1/sources/{source}/fetches` waits until an application asks for an original from this source, and then answers with a fetch id, the external id and the locator the Rinnsal stored. A Rinnsal that holds this call open counts as online.
+- `PUT /v1/sources/{source}/fetches/{fetch}` delivers the original, with its media type, or says that it is gone.
+- A Rinnsal hands out only items of its own source, and it checks every request against its own limits: the folders it was given, its mailbox, its archive. It does not trust a locator just because Hausteich sent it.
+- Handing out originals is optional. A Rinnsal that never calls `fetches` is simply always offline for this purpose.
+
 ## 4. The Rinnsale
 
-Every Rinnsal runs on a timer or on demand, compares its source with the pond's list (3.4), delivers what is new or changed and removes what is gone. It holds the credentials for its source; Hausteich never does.
+Every Rinnsal runs on a timer or on demand, compares its source with the pond's list (3.4), delivers what is new or changed and removes what is gone. While it runs it can also hand out originals (3.5): the raw message, the file, the archived document. It holds the credentials for its source; Hausteich never does. A Rinnsal may be offline, for example on a laptop that is switched off.
 
 ### 4.1 IMAP
 
@@ -115,6 +127,12 @@ Every Rinnsal runs on a timer or on demand, compares its source with the pond's 
 
 ## 6. Query: application to Hausteich
 
+How an AI uses the pond:
+
+1. It asks Hausteich, and gets hits that are already filtered and ranked.
+2. It picks what it needs from the hits.
+3. For a picked item it fetches the stored text (6.2), or the original through Hausteich and the Rinnsal (6.3). If the Rinnsal is offline, it gets the stored text only.
+
 ### 6.1 Search
 
 `POST /v1/search`
@@ -136,13 +154,26 @@ Answer: a list of hits, best first. Each hit has the chunk text, a score, and th
 
 `GET /v1/sources/{source}/items/{id}` returns the stored text and all fields of one item.
 
-### 6.3 MCP adapter
+### 6.3 Fetch the original
 
-A small separate process offers two tools, `search` and `get_item`, and calls 6.1 and 6.2. It adds nothing of its own.
+`GET /v1/sources/{source}/items/{id}/original`
+
+- If the source's Rinnsal is online, Hausteich passes the request on (3.5), waits a limited time, and returns the original with its media type.
+- If the Rinnsal is offline, does not answer in time, or reports the original gone, the answer says so and carries no content. The application then uses the stored text (6.2).
+- Hausteich does not keep originals. Every fetch goes to the Rinnsal again.
+
+### 6.4 MCP adapter
+
+A small separate process offers three tools and adds nothing of its own:
+
+- `search` calls 6.1.
+- `get_item` calls 6.2 and returns the stored text.
+- `get_original` calls 6.3. When the original is not available it returns the stored text and says that it is not the original.
 
 ## 7. Rules
 
-- Hausteich never opens a connection to a source.
+- Hausteich never opens a connection: not to a source and not to a Rinnsal. Rinnsale and applications come to it.
+- A Rinnsal reads its source and never changes it. It hands out only what belongs to its own source.
 - Nothing in Hausteich or the MCP adapter sends data anywhere. An AI that uses the pond can read and has no tool that sends.
 - Embeddings are computed on the server.
 
@@ -153,6 +184,8 @@ For each Rinnsal, in the order of section 4:
 - Everything from its sources is in the pond, and a second run delivers only what changed.
 - An item deleted or moved at the source is gone or moved in the pond after the next run.
 - The owner finds five items he names in advance by describing them, each within the first ten hits.
+- A changed item shows its new text in a search after the next run, and its old text no longer.
+- With the Rinnsal running, the original of a hit can be fetched; with the Rinnsal stopped, the same request says so and the stored text is still there.
 
 The first cut is reached with the Rinnsal for IMAP alone; the other two follow on the same interface without changing it.
 
@@ -169,6 +202,8 @@ Measured with the real mailboxes and written down here:
 - Whether the Rinnsal for IMAP sends HTML bodies as HTML or as extracted text, and what it does with quoted replies and signatures.
 - Whether items are grouped by thread in results.
 - Whether the extraction service is docling-serve as it comes, and how long it takes per document on the home server.
-- Mail attachments: when they are sent through the extraction service.
+- Mail attachments: when they are sent through the extraction service, and whether an attachment can be fetched as an original by itself.
+- How long Hausteich waits for a Rinnsal before it reports an original as not available, and the largest original it passes on.
+- What the MCP adapter does with an original that is not text, such as a PDF.
 - How the Rinnsal for folders recognises files it must not deliver, beyond hidden files.
 - The order of work against the RAGite changes (STACK.md).

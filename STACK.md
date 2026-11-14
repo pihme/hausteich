@@ -7,7 +7,7 @@ Assumptions about how Hausteich is built. Each line says where it comes from: **
 | Assumption | Status |
 | --- | --- |
 | Hausteich is headless. It has no user interface. | decided |
-| It is passive. It never reaches out to a mailbox, an archive or a folder; a Rinnsal brings the data. | decided |
+| It is passive. It never reaches out to a mailbox, an archive or a folder; a Rinnsal brings the data. It does not call a Rinnsal either: a Rinnsal that can hand out originals stays connected and waits to be asked. | decided for sources, assumed for Rinnsale |
 | It talks REST over HTTP, for intake and for queries (SPEC.md). | decided |
 | An MCP server is a thin adapter in front of the query interface, a separate small process in this repository. Hausteich itself stays REST only. | assumed |
 | It runs on the owner's home server and is reached inside the home network only. | decided |
@@ -56,6 +56,8 @@ Both touch requirements that RAGite's spec marks as closed, so they need the own
 | There are three to start with: IMAP mailboxes, folders on a computer, and the paperless-ngx archive. paperless-ngx stays as the archive and is fed from, not replaced. | decided |
 | A Rinnsal knows its source and nothing about the index. It speaks only the intake interface, and it holds the credentials for its source. | assumed |
 | A Rinnsal turns its source into text. Hausteich never sees a PDF or an office file. | assumed |
+| A Rinnsal makes up the external id of each item and may store a URL or path with it to find the original again. Hausteich stores both and interprets neither. | decided |
+| An application gets an original through Hausteich and the Rinnsal. A Rinnsal may be offline; then only the stored text is available. Hausteich keeps no originals. | decided |
 | Language per Rinnsal. | open; one toolchain for everything would be simplest |
 
 ## Extraction service
