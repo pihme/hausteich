@@ -9,12 +9,12 @@ Status: just started. Nothing is built yet.
 Hausteich is passive and has no user interface. It takes in what it is handed, indexes it, and answers search queries. It does not read mailboxes, document archives or folders itself.
 
 - **Sources** are where the data lives: a mailbox, a document archive, a folder on a computer.
-- **Wells** are small helpers that draw from one source and fill the pond. They live in this repository, one directory per well. (A German name for them is still open.)
+- A **Rinnsal** (German for trickle; plural Rinnsale) is a small helper that draws from one source and fills the pond. Rinnsale live in this repository, one directory each.
 - **Applications** ask the pond. Search happens in the application, not in Hausteich.
 
 ## First goal
 
-Find an old mail by describing it: one well for IMAP, the pond with intake and query, and an existing MCP client as the first application.
+Find an old mail by describing it: one Rinnsal for IMAP, the pond with intake and query, and an existing MCP client as the first application.
 
 ## Principles
 
