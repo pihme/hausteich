@@ -56,14 +56,15 @@ REST over HTTP, JSON bodies, paths under `/v1`.
   "container": "the folder or mailbox path",
   "thread": "an id shared by items that belong together",
   "tags": ["labels the source has for the item"],
-  "parent": "the external id of the item this one belongs to, for example the mail a picture came with",
+  "role": "attachment",
+  "parent": "the external id of the item this one belongs to: for an attachment, the mail it came with",
   "locator": "a URL or path that lets this Rinnsal find the original again",
   "attachments": [{"name": "offer.pdf", "media_type": "application/pdf", "size": 48211}]
 }
 ```
 
 - `id` is the external id. The Rinnsal makes it up, and it stays the same for the life of the item, so that a later delivery of the same item replaces the earlier one. For mail it has to survive a move between folders.
-- `version`, `format` and `text` are required. Everything else is optional.
+- `version`, `format` and `text` are required. Everything else is optional, with one exception: an item that is a mail attachment carries `"role": "attachment"` and must carry `parent`. Hausteich refuses an attachment without `parent`, or with a `parent` it does not hold, with `422`. A Rinnsal therefore delivers the message before its attachments.
 - `format` is one Hausteich can cut: `text/plain`, `text/markdown`, `text/html`, and `application/vnd.docling.document+json` for documents converted with Docling.
 - This one call is the update mechanism. Same `version` as stored: nothing happens, answer `200`. New external id: `201`. Known external id with a new `version`: the stored text, fields and chunks are replaced as a whole, `200`. When and how often a Rinnsal looks for changes is its own business.
 - The call returns when the item is searchable. There is no queue in the first cut.
@@ -73,7 +74,7 @@ REST over HTTP, JSON bodies, paths under `/v1`.
 
 ### 3.3 Remove an item
 
-`DELETE /v1/sources/{source}/items/{id}` removes the item and its chunks. Removing an unknown id answers `204` as well.
+`DELETE /v1/sources/{source}/items/{id}` removes the item and its chunks. Removing an unknown id answers `204` as well. Removing a message removes the attachments that name it as `parent`.
 
 ### 3.4 What does the pond have?
 
@@ -99,6 +100,7 @@ Every Rinnsal runs on a timer or on demand, compares its source with the pond's 
 - Text: the body, as plain text or HTML. Title: the subject. Author and recipients from the headers, container: the folder, thread: from the reference headers, locator: the message id, tags: the flags.
 - Attachments are listed with name, type and size.
 - Pictures that come with a message, attached or embedded, go through 4.5. A picture the message only links to is never loaded.
+- Every attachment that becomes an item, a picture or anything else, names its message as `parent` (3.2).
 
 ### 4.2 Folders on a computer
 
@@ -127,7 +129,7 @@ Every Rinnsal runs on a timer or on demand, compares its source with the pond's 
 
 - **No picture data in the pond.** A Docling document can carry its pictures as embedded data. A Rinnsal removes them before it delivers the document, or asks the service to leave them out. The pond holds text only.
 - **Text in a picture inside a document** is read by the extraction service and is part of that document's text. The original of the document, with its pictures, is fetched through the Rinnsal as for any item (3.5).
-- **A picture by itself** is a picture file in a folder, or a picture attached to or embedded in a mail. The Rinnsal sends it to the extraction service. If it contains text, it becomes an item of its own: its text is what was read, its `parent` is the mail it came with, and its original is the picture, which the Rinnsal hands out like any other original. A picture without text is not delivered.
+- **A picture by itself** is a picture file in a folder, or a picture attached to or embedded in a mail. The Rinnsal sends it to the extraction service. If it contains text, it becomes an item of its own: its text is what was read, its `parent` is the mail it came with (required for every mail attachment, 3.2), and its original is the picture, which the Rinnsal hands out like any other original. A picture without text is not delivered.
 - **Only what is there.** A Rinnsal uses the pictures a message or file contains. It never loads a picture from an address a mail links to.
 
 ## 5. Cutting and indexing
@@ -157,7 +159,7 @@ How an AI uses the pond:
 }
 ```
 
-Answer: a list of hits, best first. Each hit has the chunk text, a score, and the item it belongs to: source, id, title, author, date, container, thread, locator and privacy level. Several chunks of one item are returned as one hit with its best passages.
+Answer: a list of hits, best first. Each hit has the chunk text, a score, and the item it belongs to: source, id, title, author, date, container, thread, parent, locator and privacy level. Several chunks of one item are returned as one hit with its best passages.
 
 - A search needs no language model.
 - An application has its own token, for reading only.

@@ -1,6 +1,6 @@
 # Hausteich
 
-Working title. A private store for one household's own data, the small counterpart of a data lake: the pond by the house.
+Working title. A private store for one household's own data, the small counterpart of a data lake: the pond by the house. Part of [Doce Lar](https://github.com/pihme/doce-lar).
 
 Status: just started. Nothing is built yet.
 
