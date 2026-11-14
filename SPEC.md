@@ -91,13 +91,20 @@ Every Rinnsal runs on a timer or on demand, compares its source with the pond's 
 - It reads only the folders the owner lists. It never takes a whole home directory, and it skips hidden files and files that look like keys or credentials.
 - Item id: the path below the listed folder. Version: from size and modification time, or a hash. A moved file is a removed item and a new one.
 - Text: plain text, Markdown and HTML files as they are. Title: the file name, container: the directory, locator: computer and path.
-- Other file types (PDF, office files) are left out until it is decided where their text is extracted (section 9).
+- PDF and office files go through the extraction service (4.4) and are delivered as Docling documents.
 
 ### 4.3 paperless-ngx
 
 - One source for the archive. Reads through the archive's API; it never changes a document.
 - Item id: the archive's document id. Version: the document's modification time.
 - Text: the text the archive already extracted. Title: the document title, author: the correspondent, date: the document date, tags: the archive's tags, locator: the document's address in the archive.
+
+### 4.4 Extraction service
+
+- Not a Rinnsal and not part of Hausteich: a service on the home server that takes a document and returns it as a Docling document. Candidate: docling-serve (STACK.md).
+- A Rinnsal that meets a PDF or an office file sends it there and delivers the result with the format `application/vnd.docling.document+json`. The Rinnsal for folders needs it; the Rinnsal for IMAP can use it for attachments later.
+- If the service is not reachable, the Rinnsal skips those files and delivers them on a later run.
+- The archive's documents do not need it: paperless-ngx has their text already.
 
 ## 5. Cutting and indexing
 
@@ -153,7 +160,7 @@ Measured with the real mailboxes and written down here:
 
 - how long the first fill takes, and how large the SQLite file gets;
 - how long a search takes, with and without filters;
-- how well search works for German text with the chosen embedding model;
+- how well search works for text in several languages with the chosen embedding model;
 - whether a local language model is good enough to turn a question into queries and sum up hits.
 
 ## 9. Open questions
@@ -161,6 +168,7 @@ Measured with the real mailboxes and written down here:
 - Transport inside the home network: plain HTTP with tokens, or TLS.
 - Whether the Rinnsal for IMAP sends HTML bodies as HTML or as extracted text, and what it does with quoted replies and signatures.
 - Whether items are grouped by thread in results.
-- Text from PDFs, office files and mail attachments: where it is extracted. On each computer inside the Rinnsal, which is heavy for a laptop, or by one extraction helper on the server that Rinnsale hand files to.
+- Whether the extraction service is docling-serve as it comes, and how long it takes per document on the home server.
+- Mail attachments: when they are sent through the extraction service.
 - How the Rinnsal for folders recognises files it must not deliver, beyond hidden files.
 - The order of work against the RAGite changes (STACK.md).

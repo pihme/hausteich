@@ -34,10 +34,11 @@ Both touch requirements that RAGite's spec marks as closed, so they need the own
 
 | Point | Status |
 | --- | --- |
-| Hausteich's server is written in Rust. ragite#117 only works for a Rust host that compiles against RAGite. | assumed, follows from the above |
-| The built-in model, potion-retrieval-32M, is English. Mail and notes in German need a multilingual model. RAGite takes a model at build time, not at run time, so Hausteich needs its own RAGite build with another model. Which model is open. | open, important |
-| Vector search in RAGite goes through sqlite-vec, which as far as known compares against every stored vector. With 10 GB of mail that may be one to three million chunks. Whether queries stay fast enough is not known. | open, to be measured (SPEC.md) |
-| Until ragite#117 lands, a first version could use RAGite's built-in cutters for plain text and HTML and move chunking later. | open: the owner decides the order |
+| Hausteich's server is written in Rust. ragite#117 only works for a Rust host that compiles against RAGite. | decided |
+| The owner's mail is in several languages. RAGite's built-in model, potion-retrieval-32M, is English. RAGite takes another model at build time (its REQ-23), not at run time, so Hausteich uses its own build. Candidate: potion-multilingual-128M (101 languages, MIT), which RAGite's spec lists but never benchmarked. Tracked in [ragite#154](https://github.com/pihme/ragite/issues/154). | open, important |
+| Vector search in RAGite goes through sqlite-vec, which as far as known compares against every stored vector. With 10 GB of mail that may be one to three million chunks. Whether queries stay fast enough is not known. Tracked in [ragite#155](https://github.com/pihme/ragite/issues/155). | open, to be measured (SPEC.md) |
+| Hausteich is RAGite's reference user. What it needs is filed there and collected in [ragite#156](https://github.com/pihme/ragite/issues/156); numbers from real use go back onto those issues. | decided |
+| Until ragite#117 lands, Hausteich uses RAGite's built-in cutters through the formats it already sends, and moves chunking when the change is there. | assumed |
 
 ## Language model
 
@@ -54,8 +55,18 @@ Both touch requirements that RAGite's spec marks as closed, so they need the own
 | A Rinnsal is its own small process, one directory each in this repository, with its own release artifact where needed. | decided |
 | There are three to start with: IMAP mailboxes, folders on a computer, and the paperless-ngx archive. paperless-ngx stays as the archive and is fed from, not replaced. | decided |
 | A Rinnsal knows its source and nothing about the index. It speaks only the intake interface, and it holds the credentials for its source. | assumed |
-| A Rinnsal turns its source into text. Hausteich never sees a PDF or an office file. Where text is extracted from such files is open (SPEC.md). | assumed |
+| A Rinnsal turns its source into text. Hausteich never sees a PDF or an office file. | assumed |
 | Language per Rinnsal. | open; one toolchain for everything would be simplest |
+
+## Extraction service
+
+| Assumption | Status |
+| --- | --- |
+| Text from PDFs and office files comes from a service: a Rinnsal sends a document there and gets a Docling document back, which it delivers to the pond in the Docling format RAGite already cuts. | decided |
+| The service is taken off the shelf: [docling-serve](https://github.com/docling-project/docling-serve), the Docling project's own API server, with a CPU container image. | assumed, not tried |
+| It runs on the home server, next to Hausteich, and is not part of this repository. | assumed |
+
+To check before relying on it: that its JSON output is the serialized Docling document RAGite accepts (RAGite checks `schema_name` and ignores the version), which endpoints and which API key header the current release has, and how long a conversion takes on four CPU cores, with and without text recognition for scans.
 
 ## Not set up yet
 
