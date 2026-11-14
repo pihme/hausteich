@@ -56,6 +56,7 @@ REST over HTTP, JSON bodies, paths under `/v1`.
   "container": "the folder or mailbox path",
   "thread": "an id shared by items that belong together",
   "tags": ["labels the source has for the item"],
+  "parent": "the external id of the item this one belongs to, for example the mail a picture came with",
   "locator": "a URL or path that lets this Rinnsal find the original again",
   "attachments": [{"name": "offer.pdf", "media_type": "application/pdf", "size": 48211}]
 }
@@ -67,7 +68,8 @@ REST over HTTP, JSON bodies, paths under `/v1`.
 - This one call is the update mechanism. Same `version` as stored: nothing happens, answer `200`. New external id: `201`. Known external id with a new `version`: the stored text, fields and chunks are replaced as a whole, `200`. When and how often a Rinnsal looks for changes is its own business.
 - The call returns when the item is searchable. There is no queue in the first cut.
 - Knowledge about the source stays in the Rinnsal: it decodes MIME, reads a file, asks the archive, and decides what the text is. Hausteich cuts and indexes what it gets, and never sees a PDF or an office file.
-- Attachments are listed, not stored or indexed, in the first cut.
+- Attachments are listed, not stored or indexed, in the first cut. Pictures with text are the exception that follows first (4.5).
+- No picture data goes into the pond (4.5).
 
 ### 3.3 Remove an item
 
@@ -96,6 +98,7 @@ Every Rinnsal runs on a timer or on demand, compares its source with the pond's 
 - Item id: stable across folder moves. Version: changes when the message's flags or folder change.
 - Text: the body, as plain text or HTML. Title: the subject. Author and recipients from the headers, container: the folder, thread: from the reference headers, locator: the message id, tags: the flags.
 - Attachments are listed with name, type and size.
+- Pictures that come with a message, attached or embedded, go through 4.5. A picture the message only links to is never loaded.
 
 ### 4.2 Folders on a computer
 
@@ -104,6 +107,7 @@ Every Rinnsal runs on a timer or on demand, compares its source with the pond's 
 - Item id: the path below the listed folder. Version: from size and modification time, or a hash. A moved file is a removed item and a new one.
 - Text: plain text, Markdown and HTML files as they are. Title: the file name, container: the directory, locator: computer and path.
 - PDF and office files go through the extraction service (4.4) and are delivered as Docling documents.
+- Picture files go through 4.5.
 
 ### 4.3 paperless-ngx
 
@@ -114,9 +118,17 @@ Every Rinnsal runs on a timer or on demand, compares its source with the pond's 
 ### 4.4 Extraction service
 
 - Not a Rinnsal and not part of Hausteich: a service on the home server that takes a document and returns it as a Docling document. Candidate: docling-serve (STACK.md).
-- A Rinnsal that meets a PDF or an office file sends it there and delivers the result with the format `application/vnd.docling.document+json`. The Rinnsal for folders needs it; the Rinnsal for IMAP can use it for attachments later.
+- A Rinnsal that meets a PDF, an office file or a picture sends it there and delivers the result with the format `application/vnd.docling.document+json`. The Rinnsal for folders needs it; the Rinnsal for IMAP needs it for pictures and can use it for other attachments later.
+- The service also reads text in pictures (OCR): scanned pages, pictures inside a document, and picture files.
 - If the service is not reachable, the Rinnsal skips those files and delivers them on a later run.
 - The archive's documents do not need it: paperless-ngx has their text already.
+
+### 4.5 Pictures
+
+- **No picture data in the pond.** A Docling document can carry its pictures as embedded data. A Rinnsal removes them before it delivers the document, or asks the service to leave them out. The pond holds text only.
+- **Text in a picture inside a document** is read by the extraction service and is part of that document's text. The original of the document, with its pictures, is fetched through the Rinnsal as for any item (3.5).
+- **A picture by itself** is a picture file in a folder, or a picture attached to or embedded in a mail. The Rinnsal sends it to the extraction service. If it contains text, it becomes an item of its own: its text is what was read, its `parent` is the mail it came with, and its original is the picture, which the Rinnsal hands out like any other original. A picture without text is not delivered.
+- **Only what is there.** A Rinnsal uses the pictures a message or file contains. It never loads a picture from an address a mail links to.
 
 ## 5. Cutting and indexing
 
@@ -187,7 +199,12 @@ For each Rinnsal, in the order of section 4:
 - A changed item shows its new text in a search after the next run, and its old text no longer.
 - With the Rinnsal running, the original of a hit can be fetched; with the Rinnsal stopped, the same request says so and the stored text is still there.
 
-The first cut is reached with the Rinnsal for IMAP alone; the other two follow on the same interface without changing it.
+The first cut is reached with the Rinnsal for IMAP alone, with message bodies; the other two follow on the same interface without changing it.
+
+Once the extraction service is in place:
+
+- A PDF or office file in a listed folder is found by its content, and no picture data is in the pond.
+- A picture with text on it, in a folder or in a mail, is found by words that are on it, and the picture comes back as the original.
 
 Measured with the real mailboxes and written down here:
 
@@ -202,7 +219,9 @@ Measured with the real mailboxes and written down here:
 - Whether the Rinnsal for IMAP sends HTML bodies as HTML or as extracted text, and what it does with quoted replies and signatures.
 - Whether items are grouped by thread in results.
 - Whether the extraction service is docling-serve as it comes, and how long it takes per document on the home server.
-- Mail attachments: when they are sent through the extraction service, and whether an attachment can be fetched as an original by itself.
+- Mail attachments other than pictures: when they are sent through the extraction service and become items of their own.
+- Pictures: how much recognised text makes a picture one "with text", the smallest picture worth sending (logos, icons and tracking pixels should be skipped), and which languages the text recognition is set up for.
+- How long text recognition takes on the home server when a mailbox holds many pictures.
 - How long Hausteich waits for a Rinnsal before it reports an original as not available, and the largest original it passes on.
 - What the MCP adapter does with an original that is not text, such as a PDF.
 - How the Rinnsal for folders recognises files it must not deliver, beyond hidden files.

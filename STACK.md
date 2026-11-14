@@ -65,10 +65,12 @@ Both touch requirements that RAGite's spec marks as closed, so they need the own
 | Assumption | Status |
 | --- | --- |
 | Text from PDFs and office files comes from a service: a Rinnsal sends a document there and gets a Docling document back, which it delivers to the pond in the Docling format RAGite already cuts. | decided |
+| Pictures are removed from a Docling document before it is passed on. The pond holds text only. | decided |
+| Text on pictures is read by the same service (OCR): inside documents, in picture files, and in pictures that come with a mail. A picture with text becomes an item of its own and can be handed out as an original. | decided |
 | The service is taken off the shelf: [docling-serve](https://github.com/docling-project/docling-serve), the Docling project's own API server, with a CPU container image. | assumed, not tried |
 | It runs on the home server, next to Hausteich, and is not part of this repository. | assumed |
 
-To check before relying on it: that its JSON output is the serialized Docling document RAGite accepts (RAGite checks `schema_name` and ignores the version), which endpoints and which API key header the current release has, and how long a conversion takes on four CPU cores, with and without text recognition for scans.
+To check before relying on it: that its JSON output is the serialized Docling document RAGite accepts (RAGite checks `schema_name` and ignores the version), which endpoints and which API key header the current release has, how long a conversion takes on four CPU cores, with and without text recognition for scans, how the service is asked to leave pictures out, and which languages its text recognition covers. RAGite's side of this is [ragite#157](https://github.com/pihme/ragite/issues/157).
 
 ## Not set up yet
 
