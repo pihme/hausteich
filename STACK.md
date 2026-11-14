@@ -52,7 +52,9 @@ Both touch requirements that RAGite's spec marks as closed, so they need the own
 | Assumption | Status |
 | --- | --- |
 | A Rinnsal is its own small process, one directory each in this repository, with its own release artifact where needed. | decided |
-| A Rinnsal knows its source (IMAP, a folder, paperless-ngx) and nothing about the index. It speaks only the intake interface. | assumed |
+| There are three to start with: IMAP mailboxes, folders on a computer, and the paperless-ngx archive. paperless-ngx stays as the archive and is fed from, not replaced. | decided |
+| A Rinnsal knows its source and nothing about the index. It speaks only the intake interface, and it holds the credentials for its source. | assumed |
+| A Rinnsal turns its source into text. Hausteich never sees a PDF or an office file. Where text is extracted from such files is open (SPEC.md). | assumed |
 | Language per Rinnsal. | open; one toolchain for everything would be simplest |
 
 ## Not set up yet

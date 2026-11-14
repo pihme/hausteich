@@ -14,7 +14,7 @@ Hausteich is passive and has no user interface. It takes in what it is handed, i
 
 ## First goal
 
-Find an old mail by describing it: one Rinnsal for IMAP, the pond with intake and query, and an existing MCP client as the first application.
+Find an old mail or document by describing it. Three Rinnsale, built in this order: one for IMAP mailboxes, one for folders on a computer, one for the paperless-ngx archive. They fill the pond through one intake interface; an existing MCP client is the first application. Details: [SPEC.md](SPEC.md), assumptions: [STACK.md](STACK.md).
 
 ## Principles
 
